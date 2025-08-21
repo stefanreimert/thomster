@@ -51,8 +51,10 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>thomster</string>
-			</array>
-		</dict>
+   </array>
+	</dict>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera is needed to scan QR codes.</string>
 </dict>
 </plist>

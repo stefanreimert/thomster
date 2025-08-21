@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'auth.dart';
+import 'widgets/qr_scanner_modal.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -143,8 +144,13 @@ class ConnectSpotifyScreen extends StatelessWidget {
       ),
       body: Center(
         child: ElevatedButton(
-          onPressed: () {
-            // To be implemented later
+          onPressed: () async {
+            final result = await QrScannerModal.open(context);
+            if (result != null && result.isNotEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Scanned: $result')),
+              );
+            }
           },
           child: const Text('Scan QR-code'),
         ),
