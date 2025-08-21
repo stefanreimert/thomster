@@ -21,8 +21,46 @@ class ThomsterApp extends StatelessWidget {
   }
 }
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  bool _isAuthenticating = false;
+
+  Future<void> _startAuth() async {
+    setState(() {
+      _isAuthenticating = true;
+    });
+
+    try {
+      // TODO: Replace with real Spotify auth flow later.
+      await Future.delayed(const Duration(seconds: 1));
+
+      if (!mounted) return;
+
+      // Navigate to the next page only after auth completes successfully.
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const ConnectSpotifyScreen(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Authentication failed. Please try again.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAuthenticating = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,14 +85,21 @@ class WelcomeScreen extends StatelessWidget {
             width: double.infinity,
             height: 56,
             child: ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ConnectSpotifyScreen(),
-                  ),
-                );
-              },
-              child: const Text('Connect to spotify'),
+              onPressed: _isAuthenticating ? null : _startAuth,
+              child: _isAuthenticating
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 12),
+                        Text('Connecting...'),
+                      ],
+                    )
+                  : const Text('Connect to spotify'),
             ),
           ),
         ),
