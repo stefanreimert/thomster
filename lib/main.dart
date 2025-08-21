@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'auth.dart';
 
-void main() {
-  runApp(const ThomsterApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final auth = await AuthService.create();
+  runApp(ThomsterApp(auth: auth));
 }
 
 class ThomsterApp extends StatelessWidget {
-  const ThomsterApp({super.key});
+  final AuthService auth;
+  const ThomsterApp({super.key, required this.auth});
 
   @override
   Widget build(BuildContext context) {
@@ -16,13 +20,32 @@ class ThomsterApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
-      home: const WelcomeScreen(),
+      home: AuthGate(auth: auth),
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  final AuthService auth;
+  const AuthGate({super.key, required this.auth});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: auth,
+      builder: (context, _) {
+        if (auth.isAuthenticated) {
+          return ConnectSpotifyScreen(auth: auth);
+        }
+        return WelcomeScreen(auth: auth);
+      },
     );
   }
 }
 
 class WelcomeScreen extends StatefulWidget {
-  const WelcomeScreen({super.key});
+  final AuthService auth;
+  const WelcomeScreen({super.key, required this.auth});
 
   @override
   State<WelcomeScreen> createState() => _WelcomeScreenState();
@@ -37,28 +60,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     });
 
     try {
-      // TODO: Replace with real Spotify auth flow later.
-      await Future.delayed(const Duration(seconds: 1));
-
-      if (!mounted) return;
-
-      // Navigate to the next page only after auth completes successfully.
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const ConnectSpotifyScreen(),
-        ),
-      );
+      await widget.auth.login();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Authentication failed. Please try again.')),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isAuthenticating = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _isAuthenticating = false;
+      });
     }
   }
 
@@ -109,12 +121,26 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 }
 
 class ConnectSpotifyScreen extends StatelessWidget {
-  const ConnectSpotifyScreen({super.key});
+  final AuthService auth;
+  const ConnectSpotifyScreen({super.key, required this.auth});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Connect')),
+      appBar: AppBar(
+        title: const Text('Connect'),
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            tooltip: 'Logout',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await auth.logout();
+              // AuthGate will rebuild to WelcomeScreen after logout.
+            },
+          ),
+        ],
+      ),
       body: Center(
         child: ElevatedButton(
           onPressed: () {
