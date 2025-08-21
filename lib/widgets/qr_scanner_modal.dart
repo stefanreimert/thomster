@@ -11,26 +11,31 @@ class QrScannerModal extends StatefulWidget {
   /// Opens the scanner as a full-screen modal route and resolves with
   /// the first detected QR/barcode string, or null if dismissed.
   static Future<String?> open(BuildContext context) {
-    return Navigator.of(context).push<String>(
-      PageRouteBuilder<String>(
-        fullscreenDialog: true,
-        opaque: true,
-        barrierDismissible: false,
-        transitionDuration: const Duration(milliseconds: 250),
-        reverseTransitionDuration: const Duration(milliseconds: 200),
-        pageBuilder: (context, animation, secondaryAnimation) => const QrScannerModal(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-      ),
-    );
+    try {
+      return Navigator.of(context).push<String>(
+        PageRouteBuilder<String>(
+          fullscreenDialog: true,
+          opaque: true,
+          barrierDismissible: false,
+          transitionDuration: const Duration(milliseconds: 250),
+          reverseTransitionDuration: const Duration(milliseconds: 200),
+          pageBuilder: (context, animation, secondaryAnimation) => const QrScannerModal(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      );
+    } catch (e) {
+      // Handle navigation errors gracefully
+      return Future.value(null);
+    }
   }
 
   @override
   State<QrScannerModal> createState() => _QrScannerModalState();
 }
 
-class _QrScannerModalState extends State<QrScannerModal> {
+class _QrScannerModalState extends State<QrScannerModal> with WidgetsBindingObserver {
   final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     formats: [BarcodeFormat.qrCode, BarcodeFormat.aztec, BarcodeFormat.dataMatrix],
@@ -40,9 +45,33 @@ class _QrScannerModalState extends State<QrScannerModal> {
   bool _torchOn = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Explicitly manage the camera when the app moves between states to avoid
+    // iOS RunningBoard assertions and reduce noisy system logs.
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _controller.start();
+        break;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        _controller.stop();
+        break;
+    }
   }
 
   void _onDetect(BarcodeCapture capture) {
@@ -123,7 +152,7 @@ class _QrScannerModalState extends State<QrScannerModal> {
               ),
             ),
 
-            // Bottom controls: torch, flip camera
+            // Bottom controls: torch
             Positioned(
               bottom: 24,
               left: 0,
