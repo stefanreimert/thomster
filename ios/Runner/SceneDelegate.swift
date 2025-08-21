@@ -1,4 +1,3 @@
-#if canImport(UIKit)
 import UIKit
 import Flutter
 
@@ -30,4 +29,3 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.makeKeyAndVisible()
     }
 }
-#endif
