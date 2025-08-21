@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import Flutter
 import UIKit
 import XCTest
@@ -10,3 +11,4 @@ class RunnerTests: XCTestCase {
   }
 
 }
+#endif

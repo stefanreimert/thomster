@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import UIKit
 import Flutter
 
@@ -14,3 +15,4 @@ import Flutter
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
+#endif

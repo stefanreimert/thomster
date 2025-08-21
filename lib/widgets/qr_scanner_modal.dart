@@ -5,12 +5,24 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 /// Usage:
 ///   final result = await QrScannerModal.open(context);
 ///   if (result != null) { /* handle scanned string */ }
+typedef QrValidator = Future<QrValidation> Function(String raw);
+
+class QrValidation {
+  final String? value;
+  final String? error;
+  const QrValidation._({this.value, this.error});
+  factory QrValidation.valid(String value) => QrValidation._(value: value);
+  factory QrValidation.error(String message) => QrValidation._(error: message);
+  bool get isValid => value != null;
+}
+
 class QrScannerModal extends StatefulWidget {
-  const QrScannerModal({super.key});
+  final QrValidator? validator;
+  const QrScannerModal({super.key, this.validator});
 
   /// Opens the scanner as a full-screen modal route and resolves with
-  /// the first detected QR/barcode string, or null if dismissed.
-  static Future<String?> open(BuildContext context) {
+  /// the first validated (or raw, if no validator) QR/barcode string, or null if dismissed.
+  static Future<String?> open(BuildContext context, {QrValidator? validator}) {
     try {
       return Navigator.of(context).push<String>(
         PageRouteBuilder<String>(
@@ -19,7 +31,7 @@ class QrScannerModal extends StatefulWidget {
           barrierDismissible: false,
           transitionDuration: const Duration(milliseconds: 250),
           reverseTransitionDuration: const Duration(milliseconds: 200),
-          pageBuilder: (context, animation, secondaryAnimation) => const QrScannerModal(),
+          pageBuilder: (context, animation, secondaryAnimation) => QrScannerModal(validator: validator),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -42,7 +54,10 @@ class _QrScannerModalState extends State<QrScannerModal> with WidgetsBindingObse
   );
 
   bool _handled = false;
+  bool _validating = false;
   bool _torchOn = false;
+  String? _errorMessage;
+  String? _errorScanned;
 
   @override
   void initState() {
@@ -74,17 +89,51 @@ class _QrScannerModalState extends State<QrScannerModal> with WidgetsBindingObse
     }
   }
 
-  void _onDetect(BarcodeCapture capture) {
-    if (_handled) return;
+  void _onDetect(BarcodeCapture capture) async {
+    if (_handled || _validating) return;
     // Take the first barcode with a non-empty raw value.
     for (final b in capture.barcodes) {
-      final value = b.rawValue;
-      if (value != null && value.isNotEmpty) {
-        _handled = true;
-        // Pop with the result after a tiny delay to allow UI update.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) Navigator.of(context).pop<String>(value);
+      final raw = b.rawValue;
+      if (raw != null && raw.isNotEmpty) {
+        if (widget.validator == null) {
+          _handled = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) Navigator.of(context).pop<String>(raw);
+          });
+          break;
+        }
+
+        setState(() {
+          _validating = true;
         });
+        try {
+          final result = await widget.validator!(raw);
+          if (!mounted) return;
+          if (result.isValid) {
+            _handled = true;
+            final out = result.value ?? raw;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) Navigator.of(context).pop<String>(out);
+            });
+          } else {
+            setState(() {
+              _errorMessage = result.error ?? 'Invalid code';
+              _errorScanned = raw;
+            });
+          }
+        } catch (_) {
+          if (!mounted) return;
+          setState(() {
+            _errorMessage = 'Failed to validate code';
+            _errorScanned = raw;
+          });
+        } finally {
+          if (mounted) {
+            setState(() {
+              _validating = false;
+            });
+          }
+        }
         break;
       }
     }
@@ -152,6 +201,24 @@ class _QrScannerModalState extends State<QrScannerModal> with WidgetsBindingObse
               ),
             ),
 
+            // Error overlay over scanner
+            if (_errorMessage != null)
+              Positioned(
+                bottom: 110,
+                left: 16,
+                right: 16,
+                child: _ErrorBanner(
+                  message: _errorMessage!,
+                  scanned: _errorScanned,
+                  onDismiss: () {
+                    setState(() {
+                      _errorMessage = null;
+                      _errorScanned = null;
+                    });
+                  },
+                ),
+              ),
+
             // Bottom controls: torch
             Positioned(
               bottom: 24,
@@ -160,7 +227,7 @@ class _QrScannerModalState extends State<QrScannerModal> with WidgetsBindingObse
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                          // Torch toggle without live listen (mobile_scanner v7.0.1)
+                  // Torch toggle without live listen (mobile_scanner v7.0.1)
                   _RoundControlButton(
                     icon: _torchOn ? Icons.flash_on : Icons.flash_off,
                     label: 'Torch',
@@ -247,6 +314,70 @@ class _CameraErrorView extends StatelessWidget {
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  final String? scanned;
+  final VoidCallback onDismiss;
+  const _ErrorBanner({required this.message, required this.scanned, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white70),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onDismiss,
+                  icon: const Icon(Icons.close, color: Colors.white70),
+                )
+              ],
+            ),
+            if (scanned != null) ...[
+              const SizedBox(height: 8),
+              const Text('Scanned:', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  scanned!,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontFamily: 'monospace', fontSize: 12),
+                ),
+              ),
+            ]
+          ],
+        ),
       ),
     );
   }

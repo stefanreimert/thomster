@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'auth.dart';
 import 'widgets/qr_scanner_modal.dart';
 import 'playback_page.dart';
+import 'spotify_utils.dart';
 import 'package:http/http.dart' as http;
 
 void main() async {
@@ -208,8 +209,53 @@ class ConnectSpotifyScreen extends StatelessWidget {
       body: Center(
         child: ElevatedButton(
           onPressed: () async {
-            final scanned = await QrScannerModal.open(context);
+            final scanned = await QrScannerModal.open(
+              context,
+              validator: (raw) async {
+                String toProcess = raw;
+                final uri = SpotifyUtils.parseWithHttpsFallback(raw);
+                if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
+                  if (SpotifyUtils.isShortSpotifyHost(uri.host)) {
+                    final resolved = await SpotifyUtils.resolveFinalUrl(uri);
+                    if (resolved == null) {
+                      return QrValidation.error("Couldn't resolve the Spotify link. Please try again.");
+                    } else {
+                      toProcess = resolved.toString();
+                    }
+                  }
+                }
+
+                final trackId = SpotifyUtils.extractSpotifyTrackId(toProcess);
+                if (trackId == null) {
+                  if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
+                    return QrValidation.error('This Spotify link is not a track. Please scan a track link.');
+                  } else {
+                    return QrValidation.error('Not a Spotify track QR. Please scan a Spotify track link.');
+                  }
+                }
+
+                // Valid -> return the (possibly resolved) URL so we can continue.
+                return QrValidation.valid(toProcess);
+              },
+            );
             if (scanned == null || scanned.isEmpty) return;
+
+            // Already validated in scanner; extract trackId and navigate immediately.
+            final quickTrackId = SpotifyUtils.extractSpotifyTrackId(scanned);
+            if (quickTrackId != null) {
+              if (context.mounted) {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => PlaybackPage(
+                      auth: auth,
+                      trackId: quickTrackId,
+                      originalUrl: scanned,
+                    ),
+                  ),
+                );
+              }
+              return;
+            }
 
             if (context.mounted) {
               showDialog(
@@ -276,8 +322,41 @@ class ConnectSpotifyScreen extends StatelessWidget {
             if (context.mounted) {
               Navigator.of(context, rootNavigator: true).pop();
               if (errorMessage != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(errorMessage)),
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Invalid QR-code'),
+                    content: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(errorMessage!),
+                          const SizedBox(height: 12),
+                          const Text('Scanned content:', style: TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: SelectableText(
+                              scanned,
+                              maxLines: 6,
+                              style: const TextStyle(fontFamily: 'monospace'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
                 );
               }
             }
