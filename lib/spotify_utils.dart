@@ -6,6 +6,12 @@ class SpotifyUtils {
     final trimmed = input.trim();
     if (trimmed.isEmpty) return null;
 
+    // NEW: accept bare 22-character alphanumeric track IDs
+    final idOnly = RegExp(r'^[A-Za-z0-9]{22}$');
+    if (idOnly.hasMatch(trimmed)) {
+      return trimmed;
+    }
+
     // Handle spotify:track:{id}
     if (trimmed.startsWith('spotify:')) {
       final parts = trimmed.split(':');

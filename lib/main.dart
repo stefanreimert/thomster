@@ -3,7 +3,6 @@ import 'auth.dart';
 import 'widgets/qr_scanner_modal.dart';
 import 'playback_page.dart';
 import 'spotify_utils.dart';
-import 'package:http/http.dart' as http;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,15 +65,21 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     try {
       await widget.auth.login();
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        setState(() {
+          _isAuthenticating = false;
+        });
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Authentication failed. Please try again.')),
       );
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isAuthenticating = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isAuthenticating = false;
+        });
+      }
     }
   }
 
@@ -172,23 +177,6 @@ class ConnectSpotifyScreen extends StatelessWidget {
     return null;
   }
 
-  static bool _isSpotifyHost(String host) {
-    return host == 'open.spotify.com' || host.endsWith('.spotify.com') || host == 'spotify.link' || host.endsWith('.spotify.link') || host == 'spoti.fi';
-  }
-
-  static bool _isShortSpotifyHost(String host) {
-    return host == 'spotify.link' || host.endsWith('.spotify.link') || host == 'spoti.fi';
-  }
-
-  static Future<Uri?> _resolveFinalUrl(Uri uri) async {
-    try {
-      final resp = await http.get(uri).timeout(const Duration(seconds: 6));
-      return resp.request?.url ?? uri;
-    } catch (_) {
-      return null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -234,131 +222,24 @@ class ConnectSpotifyScreen extends StatelessWidget {
                   }
                 }
 
-                // Valid -> return the (possibly resolved) URL so we can continue.
-                return QrValidation.valid(toProcess);
+                // IMPORTANT: return the trackId, not the URL
+                return QrValidation.valid(trackId);
               },
             );
             if (scanned == null || scanned.isEmpty) return;
 
-            // Already validated in scanner; extract trackId and navigate immediately.
-            final quickTrackId = SpotifyUtils.extractSpotifyTrackId(scanned);
-            if (quickTrackId != null) {
-              if (context.mounted) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => PlaybackPage(
-                      auth: auth,
-                      trackId: quickTrackId,
-                      originalUrl: scanned,
-                    ),
-                  ),
-                );
-              }
-              return;
-            }
-
+            // 'scanned' is the trackId now (provided by validator)
+            final trackId = scanned;
             if (context.mounted) {
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (_) => const Dialog(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 12),
-                        Text('Processing...'),
-                      ],
-                    ),
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => PlaybackPage(
+                    auth: auth,
+                    trackId: trackId,
+                    originalUrl: null,
                   ),
                 ),
               );
-            }
-
-            String toProcess = scanned;
-            String? errorMessage;
-
-            try {
-              final uri = _parseWithHttpsFallback(scanned);
-              if (uri != null && _isSpotifyHost(uri.host)) {
-                if (_isShortSpotifyHost(uri.host)) {
-                  final resolved = await _resolveFinalUrl(uri);
-                  if (resolved == null) {
-                    errorMessage = "Couldn't resolve the Spotify link. Please try again.";
-                  } else {
-                    toProcess = resolved.toString();
-                  }
-                }
-              }
-
-              final trackId = extractSpotifyTrackId(toProcess);
-              if (trackId == null) {
-                if (uri != null && _isSpotifyHost(uri.host)) {
-                  errorMessage ??= 'This Spotify link is not a track. Please scan a track link.';
-                } else {
-                  errorMessage ??= 'Not a Spotify track QR. Please scan a Spotify track link.';
-                }
-              } else {
-                if (context.mounted) {
-                  Navigator.of(context, rootNavigator: true).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => PlaybackPage(
-                        auth: auth,
-                        trackId: trackId,
-                        originalUrl: scanned,
-                      ),
-                    ),
-                  );
-                  return;
-                }
-              }
-            } catch (_) {
-              errorMessage = 'Failed to process QR. Please try again.';
-            }
-
-            if (context.mounted) {
-              Navigator.of(context, rootNavigator: true).pop();
-              if (errorMessage != null) {
-                showDialog(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text('Invalid QR-code'),
-                    content: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(errorMessage!),
-                          const SizedBox(height: 12),
-                          const Text('Scanned content:', style: TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: SelectableText(
-                              scanned,
-                              maxLines: 6,
-                              style: const TextStyle(fontFamily: 'monospace'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('OK'),
-                      ),
-                    ],
-                  ),
-                );
-              }
             }
           },
           child: const Text('Scan QR-code'),
