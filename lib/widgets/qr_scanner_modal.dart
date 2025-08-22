@@ -193,7 +193,7 @@ class _QrScannerModalState extends State<QrScannerModal> with WidgetsBindingObse
               left: 8,
               child: IconButton.filled(
                 style: const ButtonStyle(
-                  backgroundColor: MaterialStatePropertyAll(Colors.black54),
+                  backgroundColor: WidgetStatePropertyAll(Colors.black54),
                 ),
                 icon: const Icon(Icons.close, color: Colors.white),
                 onPressed: () => Navigator.of(context).pop<String>(null),
@@ -263,7 +263,7 @@ class _RoundControlButton extends StatelessWidget {
       children: [
         IconButton.filled(
           style: const ButtonStyle(
-            backgroundColor: MaterialStatePropertyAll(Colors.black54),
+            backgroundColor: WidgetStatePropertyAll(Colors.black54),
           ),
           onPressed: onPressed,
           icon: Icon(icon, color: Colors.white),
