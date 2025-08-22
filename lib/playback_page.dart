@@ -132,7 +132,7 @@ class _PlaybackPageState extends State<PlaybackPage> {
       await widget.auth.refreshAccessToken();
       token = widget.auth.accessToken;
       if (token != null) {
-        resp = await attemptPlay(token!);
+        resp = await attemptPlay(token);
       }
     }
 
@@ -208,7 +208,7 @@ class _PlaybackPageState extends State<PlaybackPage> {
 
       // Retry play once more after activation/transfer
       if (token != null) {
-        resp = await attemptPlay(token!);
+        resp = await attemptPlay(token);
       }
     }
 
