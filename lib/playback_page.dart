@@ -94,8 +94,12 @@ class _PlaybackPageState extends State<PlaybackPage> {
       return;
     }
 
-    Future<http.Response> attemptPlay(String tkn) {
-      final uri = Uri.https('api.spotify.com', '/v1/me/player/play');
+    Future<http.Response> attemptPlay(String tkn, {String? deviceId}) {
+      final uri = Uri.https(
+        'api.spotify.com',
+        '/v1/me/player/play',
+        deviceId != null ? {'device_id': deviceId} : null,
+      );
       final body = jsonEncode({
         'uris': ['spotify:track:${widget.trackId}'],
       });
@@ -168,7 +172,7 @@ class _PlaybackPageState extends State<PlaybackPage> {
                 if (active && id != null) {
                   activeDeviceId = id;
                 }
-                if (id != null && (type == 'smartphone' || name.toLowerCase().contains('iphone') || name.toLowerCase().contains('android'))) {
+                if (id != null && (type == 'smartphone' || name.toLowerCase().contains('iphone') || name.toLowerCase().contains('android') || name.toLowerCase().contains('this phone'))) {
                   phoneDeviceId = id;
                 }
               }
@@ -180,8 +184,13 @@ class _PlaybackPageState extends State<PlaybackPage> {
         }
       }
 
-      // If there is no active device but we see a phone device, transfer playback there.
-      if (activeDeviceId == null && phoneDeviceId != null && token != null) {
+      // If an active device is available, try playing directly on it
+      if (activeDeviceId != null && token != null) {
+        resp = await attemptPlay(token, deviceId: activeDeviceId);
+      }
+
+      // If there is no active device but we see a phone device, transfer playback there, wait briefly, then target it explicitly.
+      if ((resp.statusCode == 404 || resp.statusCode == 403) && activeDeviceId == null && phoneDeviceId != null && token != null) {
         final transferUri = Uri.https('api.spotify.com', '/v1/me/player');
         final tBody = jsonEncode({
           'device_ids': [phoneDeviceId],
@@ -195,10 +204,13 @@ class _PlaybackPageState extends State<PlaybackPage> {
           },
           body: tBody,
         );
+        // Give Spotify a moment to activate the device
+        await Future.delayed(const Duration(milliseconds: 600));
+        resp = await attemptPlay(token, deviceId: phoneDeviceId);
       }
 
-      // Retry play once more after activation/transfer
-      if (token != null) {
+      // Final fallback retry without device targeting
+      if (token != null && (resp.statusCode == 404 || resp.statusCode == 403)) {
         resp = await attemptPlay(token);
       }
     }
