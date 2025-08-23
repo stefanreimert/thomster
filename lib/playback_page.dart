@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
 
 import 'auth.dart';
 
@@ -138,15 +137,7 @@ class _PlaybackPageState extends State<PlaybackPage> {
 
     // If still not successful, try to activate Spotify device and retry.
     if (resp.statusCode == 404 || (resp.statusCode == 403)) {
-      // Attempt to open Spotify app to the track to activate a device
-      try {
-        final deep = Uri.parse('spotify:track:${widget.trackId}');
-        final ok = await launchUrl(deep, mode: LaunchMode.externalApplication);
-        if (!ok) {
-          final web = Uri.parse('https://open.spotify.com/track/${widget.trackId}');
-          await launchUrl(web, mode: LaunchMode.externalApplication);
-        }
-      } catch (_) {}
+      // Do not launch external Spotify app; stay in-app. Instead, try to find/activate a device via transfer and retry.
 
       // Poll for an active device for up to ~10 seconds
       final devicesUri = Uri.https('api.spotify.com', '/v1/me/player/devices');
