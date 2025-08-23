@@ -257,16 +257,6 @@ class _PlaybackPageState extends State<PlaybackPage> {
     }
   }
 
-  Future<void> _openInSpotify() async {
-    final url = widget.originalUrl ?? 'https://open.spotify.com/track/${widget.trackId}';
-    final uri = Uri.parse(url);
-    try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {
-      await launchUrl(uri, mode: LaunchMode.platformDefault);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final title = 'Playback';
@@ -311,12 +301,6 @@ class _PlaybackPageState extends State<PlaybackPage> {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _openInSpotify,
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('Open in Spotify'),
             ),
             const SizedBox(height: 12),
             if (_lastError != null)
