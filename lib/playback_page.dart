@@ -2,12 +2,9 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
 import 'auth.dart';
-import 'web_player.dart';
-import 'app_remote.dart';
 
 class PlaybackPage extends StatefulWidget {
   final AuthService auth;
@@ -36,25 +33,11 @@ class _PlaybackPageState extends State<PlaybackPage> {
     _autoStart();
   }
 
-  Future<void> _activateViaAppRemote() async {
-    try {
-      final activator = AppRemoteActivator();
-      await activator.activateSilently(
-        clientId: widget.auth.clientId,
-        redirectUri: widget.auth.redirectUri,
-      );
-    } catch (_) {
-      // Best-effort; ignore failures.
-    }
-  }
 
   Future<void> _autoStart() async {
-    // Best effort: activate device silently, then start the scanned track.
-    await _activateViaAppRemote();
-    // Small delay to let the device register as active.
-    await Future.delayed(const Duration(milliseconds: 200));
+    // Start playing the scanned song right away without pre-activating App Remote
+    // to avoid any chance of the previously paused track resuming.
     if (!mounted) return;
-    // Start playing the scanned song right away.
     Future.microtask(() => _play());
   }
 
@@ -126,6 +109,18 @@ class _PlaybackPageState extends State<PlaybackPage> {
       return;
     }
 
+    // Safety: pause any current playback to prevent hearing an old track before we start the scanned one.
+    try {
+      final pauseUri = Uri.https('api.spotify.com', '/v1/me/player/pause');
+      await _put(
+        pauseUri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+    } catch (_) {}
+
     Future<http.Response> attemptPlay(String tkn, {String? deviceId}) {
       final uri = Uri.https(
         'api.spotify.com',
@@ -145,47 +140,6 @@ class _PlaybackPageState extends State<PlaybackPage> {
       );
     }
 
-    // Web-only: initialize Web Playback SDK and set target device if available
-    String? webTargetDeviceId;
-    if (kIsWeb) {
-      try {
-        final webPlayer = WebSpotifyPlayer();
-        await webPlayer.init(getToken: _ensureAccessToken);
-        final did = await webPlayer.connectAndGetDeviceId(timeout: const Duration(seconds: 10));
-        if (did == null) {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-              _lastError = 'Web player not ready. Ensure the page is allowed to play audio and you have Spotify Premium.';
-            });
-          }
-          return;
-        }
-        webTargetDeviceId = did;
-        // Transfer playback to the web player device to activate it
-        final transferUri = Uri.https('api.spotify.com', '/v1/me/player');
-        final tkn = token;
-        if (tkn != null) {
-          final tBody = jsonEncode({
-            'device_ids': [did],
-            'play': true,
-          });
-          await _put(
-            transferUri,
-            headers: {
-              'Authorization': 'Bearer $tkn',
-              'Content-Type': 'application/json',
-            },
-            body: tBody,
-          );
-        }
-        // Attempt to satisfy autoplay policies by resuming via SDK in response to user gesture
-        await webPlayer.resume();
-        await Future.delayed(const Duration(milliseconds: 800));
-      } catch (e) {
-        // If SDK init fails, continue with existing non-web logic fallbacks (will likely fail on web)
-      }
-    }
 
     Future<String> parseErr(http.Response resp) async {
       String msg = 'Request failed (${resp.statusCode})';
@@ -202,20 +156,21 @@ class _PlaybackPageState extends State<PlaybackPage> {
       return msg;
     }
 
-    http.Response resp = await attemptPlay(token, deviceId: webTargetDeviceId);
+    http.Response resp = await attemptPlay(token);
 
     // If unauthorized, try refresh once and retry.
     if (resp.statusCode == 401) {
       await widget.auth.refreshAccessToken();
       token = widget.auth.accessToken;
       if (token != null) {
-        resp = await attemptPlay(token, deviceId: webTargetDeviceId);
+        resp = await attemptPlay(token);
       }
     }
 
     // If still not successful, try to activate Spotify device and retry.
     if (resp.statusCode == 404 || (resp.statusCode == 403)) {
       // Do not launch external Spotify app; stay in-app. Instead, try to find/activate a device via transfer and retry.
+
 
       // Poll for an active device for up to ~10 seconds
       final devicesUri = Uri.https('api.spotify.com', '/v1/me/player/devices');
@@ -268,7 +223,7 @@ class _PlaybackPageState extends State<PlaybackPage> {
         final transferUri = Uri.https('api.spotify.com', '/v1/me/player');
         final tBody = jsonEncode({
           'device_ids': [phoneDeviceId],
-          'play': true,
+          'play': false,
         });
         await _put(
           transferUri,
@@ -343,12 +298,17 @@ class _PlaybackPageState extends State<PlaybackPage> {
 
     final ok = await _withAuthRetry((token) async {
       final uri = Uri.https('api.spotify.com', '/v1/me/player/play');
+      final body = jsonEncode({
+        'uris': ['spotify:track:${widget.trackId}'],
+        'position_ms': 0,
+      });
       return _put(
         uri,
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
+        body: body,
       );
     });
 

@@ -45,7 +45,7 @@ class WebSpotifyPlayer {
         final token = await _getToken();
         if (token != null) {
           // Call the provided JS callback with the token
-          jsu.callFunction(cb, [token]);
+          jsu.callMethod(cb, 'call', [null, token]);
         }
       } catch (_) {}
     }));
@@ -90,8 +90,8 @@ class WebSpotifyPlayer {
       throw StateError('Player not initialized');
     }
     try {
-      final res = await jsu.promiseToFuture(jsu.callMethod(_player, 'connect', []));
-      // res is boolean; ignore
+      await jsu.promiseToFuture(jsu.callMethod(_player, 'connect', []));
+      // connect() returns a boolean; nothing to use here.
     } catch (_) {}
 
     final deadline = DateTime.now().add(timeout);
