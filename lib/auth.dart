@@ -18,6 +18,10 @@ class AuthService extends ChangeNotifier {
     'user-read-playback-state',
     'user-modify-playback-state',
     'user-read-currently-playing',
+    // Web Playback SDK requirements (also safe on mobile):
+    'streaming',
+    'user-read-email',
+    'user-read-private',
   ];
 
   static const _keyIsAuthenticated = 'auth.isAuthenticated';
@@ -37,6 +41,9 @@ class AuthService extends ChangeNotifier {
   }
 
   bool get isAuthenticated => _isAuthenticated;
+
+  String get clientId => _clientId;
+  String get redirectUri => _redirectUri;
 
   String? get accessToken => _prefs.getString(_keyAccessToken);
   String? get refreshToken => _prefs.getString(_keyRefreshToken);

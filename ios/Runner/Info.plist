@@ -56,6 +56,11 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>The camera is needed to scan QR codes.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>spotify</string>
+		<string>spotify-action</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
     <dict>
       <key>UIApplicationSupportsMultipleScenes</key>

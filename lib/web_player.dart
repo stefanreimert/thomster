@@ -1,0 +1,1 @@
+export 'web_player_stub.dart' if (dart.library.html) 'web_player_web.dart';

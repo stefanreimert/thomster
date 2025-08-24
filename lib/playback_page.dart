@@ -1,9 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
 import 'auth.dart';
+import 'web_player.dart';
+import 'app_remote.dart';
 
 class PlaybackPage extends StatefulWidget {
   final AuthService auth;
@@ -25,6 +28,24 @@ class _PlaybackPageState extends State<PlaybackPage> {
   bool _isPlaying = false;
   bool _isLoading = false;
   String? _lastError;
+
+  @override
+  void initState() {
+    super.initState();
+    _activateViaAppRemote();
+  }
+
+  Future<void> _activateViaAppRemote() async {
+    try {
+      final activator = AppRemoteActivator();
+      await activator.activateSilently(
+        clientId: widget.auth.clientId,
+        redirectUri: widget.auth.redirectUri,
+      );
+    } catch (_) {
+      // Best-effort; ignore failures.
+    }
+  }
 
   Future<String?> _ensureAccessToken() async {
     if (widget.auth.isAccessTokenExpired) {
@@ -113,6 +134,48 @@ class _PlaybackPageState extends State<PlaybackPage> {
       );
     }
 
+    // Web-only: initialize Web Playback SDK and set target device if available
+    String? webTargetDeviceId;
+    if (kIsWeb) {
+      try {
+        final webPlayer = WebSpotifyPlayer();
+        await webPlayer.init(getToken: _ensureAccessToken);
+        final did = await webPlayer.connectAndGetDeviceId(timeout: const Duration(seconds: 10));
+        if (did == null) {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _lastError = 'Web player not ready. Ensure the page is allowed to play audio and you have Spotify Premium.';
+            });
+          }
+          return;
+        }
+        webTargetDeviceId = did;
+        // Transfer playback to the web player device to activate it
+        final transferUri = Uri.https('api.spotify.com', '/v1/me/player');
+        final tkn = token;
+        if (tkn != null) {
+          final tBody = jsonEncode({
+            'device_ids': [did],
+            'play': true,
+          });
+          await _put(
+            transferUri,
+            headers: {
+              'Authorization': 'Bearer $tkn',
+              'Content-Type': 'application/json',
+            },
+            body: tBody,
+          );
+        }
+        // Attempt to satisfy autoplay policies by resuming via SDK in response to user gesture
+        await webPlayer.resume();
+        await Future.delayed(const Duration(milliseconds: 800));
+      } catch (e) {
+        // If SDK init fails, continue with existing non-web logic fallbacks (will likely fail on web)
+      }
+    }
+
     Future<String> parseErr(http.Response resp) async {
       String msg = 'Request failed (${resp.statusCode})';
       try {
@@ -128,14 +191,14 @@ class _PlaybackPageState extends State<PlaybackPage> {
       return msg;
     }
 
-    http.Response resp = await attemptPlay(token);
+    http.Response resp = await attemptPlay(token, deviceId: webTargetDeviceId);
 
     // If unauthorized, try refresh once and retry.
     if (resp.statusCode == 401) {
       await widget.auth.refreshAccessToken();
       token = widget.auth.accessToken;
       if (token != null) {
-        resp = await attemptPlay(token);
+        resp = await attemptPlay(token, deviceId: webTargetDeviceId);
       }
     }
 
