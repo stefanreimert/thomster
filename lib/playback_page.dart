@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'app_remote.dart';
+import 'widgets/qr_scanner_modal.dart';
+import 'spotify_utils.dart';
 
 class PlaybackPage extends StatefulWidget {
   final AuthService auth;
@@ -345,6 +347,52 @@ class _PlaybackPageState extends State<PlaybackPage> {
     await _play();
   }
 
+  Future<void> _scanAgain() async {
+    if (_isLoading) return;
+    final scanned = await QrScannerModal.open(
+      context,
+      validator: (raw) async {
+        String toProcess = raw;
+        final uri = SpotifyUtils.parseWithHttpsFallback(raw);
+        if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
+          if (SpotifyUtils.isShortSpotifyHost(uri.host)) {
+            final resolved = await SpotifyUtils.resolveFinalUrl(uri);
+            if (resolved == null) {
+              return QrValidation.error("Couldn't resolve the Spotify link. Please try again.");
+            } else {
+              toProcess = resolved.toString();
+            }
+          }
+        }
+
+        final trackId = SpotifyUtils.extractSpotifyTrackId(toProcess);
+        if (trackId == null) {
+          if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
+            return QrValidation.error('This Spotify link is not a track. Please scan a track link.');
+          } else {
+            return QrValidation.error('Not a Spotify track QR. Please scan a Spotify track link.');
+          }
+        }
+
+        return QrValidation.valid(trackId);
+      },
+    );
+
+    if (scanned == null || scanned.isEmpty) return;
+    if (!mounted) return;
+
+    // Navigate to a new PlaybackPage with the newly scanned trackId.
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => PlaybackPage(
+          auth: widget.auth,
+          trackId: scanned,
+          originalUrl: null,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = 'Playback';
@@ -373,6 +421,12 @@ class _PlaybackPageState extends State<PlaybackPage> {
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                   : Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
               label: Text(_isPlaying ? 'Pause' : 'Resume'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _isLoading ? null : _scanAgain,
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Scan again'),
             ),
             const SizedBox(height: 12),
             if (_lastError != null)
