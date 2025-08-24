@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -32,7 +33,7 @@ class _PlaybackPageState extends State<PlaybackPage> {
   @override
   void initState() {
     super.initState();
-    _activateViaAppRemote();
+    _autoStart();
   }
 
   Future<void> _activateViaAppRemote() async {
@@ -45,6 +46,16 @@ class _PlaybackPageState extends State<PlaybackPage> {
     } catch (_) {
       // Best-effort; ignore failures.
     }
+  }
+
+  Future<void> _autoStart() async {
+    // Best effort: activate device silently, then start the scanned track.
+    await _activateViaAppRemote();
+    // Small delay to let the device register as active.
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
+    // Start playing the scanned song right away.
+    Future.microtask(() => _play());
   }
 
   Future<String?> _ensureAccessToken() async {
@@ -323,6 +334,44 @@ class _PlaybackPageState extends State<PlaybackPage> {
     }
   }
 
+  Future<void> _resume() async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _lastError = null;
+    });
+
+    final ok = await _withAuthRetry((token) async {
+      final uri = Uri.https('api.spotify.com', '/v1/me/player/play');
+      return _put(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+    });
+
+    if (ok) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isPlaying = true;
+        });
+      }
+      return;
+    }
+
+    // Fallback: try full play flow to start the scanned track.
+    if (mounted) {
+      setState(() {
+        _isLoading = false; // allow _play() to run
+        _lastError = null;  // clear transient error before fallback
+      });
+    }
+    await _play();
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = 'Playback';
@@ -345,28 +394,12 @@ class _PlaybackPageState extends State<PlaybackPage> {
                 overflow: TextOverflow.ellipsis,
               ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: _isLoading ? null : _play,
-                    icon: _isLoading && _isPlaying == false
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.play_arrow),
-                    label: const Text('Play'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: _isLoading ? null : _pause,
-                    icon: _isLoading && _isPlaying == true
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.pause),
-                    label: const Text('Pause'),
-                  ),
-                ),
-              ],
+            FilledButton.icon(
+              onPressed: _isLoading ? null : (_isPlaying ? _pause : _resume),
+              icon: _isLoading
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
+              label: Text(_isPlaying ? 'Pause' : 'Resume'),
             ),
             const SizedBox(height: 12),
             if (_lastError != null)
