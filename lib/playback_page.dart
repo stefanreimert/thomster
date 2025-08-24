@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'app_remote.dart';
 
 class PlaybackPage extends StatefulWidget {
   final AuthService auth;
@@ -33,6 +35,19 @@ class _PlaybackPageState extends State<PlaybackPage> {
     _autoStart();
   }
 
+
+  Future<void> _activateViaAppRemote() async {
+    if (kIsWeb) return;
+    final p = defaultTargetPlatform;
+    if (!(p == TargetPlatform.android || p == TargetPlatform.iOS)) return;
+    try {
+      final activator = AppRemoteActivator();
+      await activator.activateSilently(
+        clientId: widget.auth.clientId,
+        redirectUri: widget.auth.redirectUri,
+      );
+    } catch (_) {}
+  }
 
   Future<void> _autoStart() async {
     // Start playing the scanned song right away without pre-activating App Remote
@@ -170,7 +185,9 @@ class _PlaybackPageState extends State<PlaybackPage> {
     // If still not successful, try to activate Spotify device and retry.
     if (resp.statusCode == 404 || (resp.statusCode == 403)) {
       // Do not launch external Spotify app; stay in-app. Instead, try to find/activate a device via transfer and retry.
-
+      // Best-effort: on mobile, silently connect via App Remote to register the phone device.
+      await _activateViaAppRemote();
+      await Future.delayed(const Duration(milliseconds: 200));
 
       // Poll for an active device for up to ~10 seconds
       final devicesUri = Uri.https('api.spotify.com', '/v1/me/player/devices');
