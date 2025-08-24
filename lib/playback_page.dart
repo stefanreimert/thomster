@@ -315,17 +315,13 @@ class _PlaybackPageState extends State<PlaybackPage> {
 
     final ok = await _withAuthRetry((token) async {
       final uri = Uri.https('api.spotify.com', '/v1/me/player/play');
-      final body = jsonEncode({
-        'uris': ['spotify:track:${widget.trackId}'],
-        'position_ms': 0,
-      });
+      // Resume current playback (no body). If this fails (e.g., no active context),
+      // we fall back to _play() below to start the scanned track.
       return _put(
         uri,
         headers: {
           'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
         },
-        body: body,
       );
     });
 
