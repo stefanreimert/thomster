@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:ui' as ui;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -26,15 +28,37 @@ class PlaybackPage extends StatefulWidget {
   State<PlaybackPage> createState() => _PlaybackPageState();
 }
 
-class _PlaybackPageState extends State<PlaybackPage> {
+class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderStateMixin {
   bool _isPlaying = false;
   bool _isLoading = false;
   String? _lastError;
+  late final AnimationController _bgController;
 
   @override
   void initState() {
     super.initState();
+    _bgController = AnimationController(vsync: this, duration: const Duration(seconds: 6));
+    // Start in stopped state; will be synced when playback state changes.
+    _syncBgAnimation();
     _autoStart();
+  }
+
+  void _syncBgAnimation() {
+    if (_isPlaying) {
+      if (!_bgController.isAnimating) {
+        _bgController.repeat();
+      }
+    } else {
+      if (_bgController.isAnimating) {
+        _bgController.stop();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _bgController.dispose();
+    super.dispose();
   }
 
 
@@ -279,6 +303,7 @@ class _PlaybackPageState extends State<PlaybackPage> {
         _isLoading = false;
         _isPlaying = success ? true : _isPlaying;
       });
+      _syncBgAnimation();
     }
   }
 
@@ -305,6 +330,7 @@ class _PlaybackPageState extends State<PlaybackPage> {
         _isLoading = false;
         _isPlaying = ok ? false : _isPlaying;
       });
+      _syncBgAnimation();
     }
   }
 
@@ -333,6 +359,7 @@ class _PlaybackPageState extends State<PlaybackPage> {
           _isLoading = false;
           _isPlaying = true;
         });
+        _syncBgAnimation();
       }
       return;
     }
@@ -399,65 +426,278 @@ class _PlaybackPageState extends State<PlaybackPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
+        centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Track ID: ${widget.trackId}', style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 8),
-            if (widget.originalUrl != null)
-              Text(
-                widget.originalUrl!,
-                style: Theme.of(context).textTheme.bodySmall,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _isLoading ? null : (_isPlaying ? _pause : _resume),
-              icon: _isLoading
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
-              label: Text(_isPlaying ? 'Pause' : 'Resume'),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _isLoading ? null : _scanAgain,
-              icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Scan again'),
-            ),
-            const SizedBox(height: 12),
-            if (_lastError != null)
-              Container(
-                padding: const EdgeInsets.all(12),
+      extendBodyBehindAppBar: true,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Vibrant animated gradient backdrop
+          AnimatedBuilder(
+            animation: _bgController,
+            builder: (context, child) {
+              final angle = _bgController.value * 2 * math.pi;
+              return Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(8),
+                  gradient: SweepGradient(
+                    center: Alignment.center,
+                    startAngle: 0.0,
+                    endAngle: 2 * math.pi,
+                    transform: GradientRotation(angle),
+                    colors: [
+                      const Color(0xFF00E5FF), // Cyan
+                      const Color(0xFF7C4DFF), // Purple
+                      const Color(0xFFFF4081), // Pink
+                      const Color(0xFFFFEA00), // Yellow
+                      const Color(0xFF00E5FF), // Cyan (loop)
+                    ],
+                    stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+                  ),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.error_outline, color: Theme.of(context).colorScheme.onErrorContainer),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _lastError!,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+              );
+            },
+          ),
+          // Moving radial highlight overlay for extra motion
+          AnimatedBuilder(
+            animation: _bgController,
+            builder: (context, child) {
+              final t = _bgController.value * 2 * math.pi;
+              final align = Alignment(math.cos(t) * 0.6, math.sin(t) * 0.6);
+              return IgnorePointer(
+                ignoring: true,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: align,
+                      radius: 0.6,
+                      colors: [
+                        Colors.white.withOpacity(0.12),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 1.0],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          SafeArea(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                      color: Colors.white.withOpacity(0.04),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                          blurRadius: 24,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 8),
+                        )
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Header + track info
+                              Text(
+                                'Now Playing',
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Track ID',
+                                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              SelectableText(
+                                widget.trackId,
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      letterSpacing: 0.5,
+                                      fontFeatures: const [ui.FontFeature.tabularFigures()],
+                                    ),
+                              ),
+                              if (widget.originalUrl != null) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  widget.originalUrl!,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                      ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                              const SizedBox(height: 24),
+
+                              // Big Play/Pause button with glow + pulse
+                              AnimatedBuilder(
+                                animation: _bgController,
+                                builder: (context, child) {
+                                  final phase = _bgController.value * 2 * math.pi * 2; // faster pulse
+                                  final wave = math.sin(phase);
+                                  final scale = _isPlaying ? (1.0 + 0.04 * wave) : 1.0;
+                                  final intensity = _isPlaying ? (0.5 + 0.5 * (wave * 0.5 + 0.5)) : 0.45;
+                                  final blur = 30.0 + (_isPlaying ? 12.0 * (wave * 0.5 + 0.5) : 0.0);
+                                  final spread = 2.0 + (_isPlaying ? 2.0 * (wave * 0.5 + 0.5) : 0.0);
+                                  return Transform.scale(
+                                    scale: scale,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Theme.of(context).colorScheme.primary.withOpacity(intensity),
+                                            blurRadius: blur,
+                                            spreadRadius: spread,
+                                          ),
+                                        ],
+                                      ),
+                                      child: FilledButton(
+                                        onPressed: _isLoading ? null : (_isPlaying ? _pause : _resume),
+                                        style: const ButtonStyle(
+                                          shape: WidgetStatePropertyAll(CircleBorder()),
+                                          padding: WidgetStatePropertyAll(EdgeInsets.all(28)),
+                                        ),
+                                        child: SizedBox(
+                                          width: 72,
+                                          height: 72,
+                                          child: Center(
+                                            child: _isLoading
+                                                ? const SizedBox(
+                                                    width: 28,
+                                                    height: 28,
+                                                    child: CircularProgressIndicator(strokeWidth: 3),
+                                                  )
+                                                : Icon(
+                                                    _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                                    size: 48,
+                                                  ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                _isPlaying ? 'Pause' : 'Resume',
+                                style: Theme.of(context).textTheme.labelLarge,
+                              ),
+
+                              if (_isPlaying)
+                                AnimatedBuilder(
+                                  animation: _bgController,
+                                  builder: (context, child) {
+                                    final v = _bgController.value;
+                                    final heights = List<double>.generate(5, (i) {
+                                      final phase = v * 2 * math.pi * 2 + i * 1.2;
+                                      final s = (math.sin(phase) + 1) / 2;
+                                      return ui.lerpDouble(6, 28, s)!;
+                                    });
+                                    final cols = const [
+                                      Color(0xFF00E5FF),
+                                      Color(0xFF7C4DFF),
+                                      Color(0xFFFF4081),
+                                      Color(0xFFFFEA00),
+                                      Color(0xFF00E5FF),
+                                    ];
+                                    return SizedBox(
+                                      height: 32,
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          for (int i = 0; i < heights.length; i++)
+                                            Container(
+                                              width: 6,
+                                              height: heights[i],
+                                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                                              decoration: BoxDecoration(
+                                                color: cols[i].withOpacity(0.9),
+                                                borderRadius: BorderRadius.circular(3),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: cols[i].withOpacity(0.35),
+                                                    blurRadius: 10,
+                                                    spreadRadius: 1,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              const SizedBox(height: 20),
+                              // Scan again secondary action
+                              OutlinedButton.icon(
+                                onPressed: _isLoading ? null : _scanAgain,
+                                icon: const Icon(Icons.qr_code_scanner),
+                                label: const Text('Scan again'),
+                              ),
+
+                              const SizedBox(height: 16),
+                              if (_lastError != null)
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.errorContainer,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(Icons.error_outline, color: Theme.of(context).colorScheme.onErrorContainer),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _lastError!,
+                                          style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                              const SizedBox(height: 8),
+                              Text(
+                                _isPlaying ? 'Status: Playing' : 'Status: Paused/Idle',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            const Spacer(),
-            Text(
-              _isPlaying ? 'Status: Playing' : 'Status: Paused/Idle',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
