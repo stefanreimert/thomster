@@ -20,14 +20,78 @@ class ThomsterApp extends StatelessWidget {
       title: 'Thomster',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark),
         useMaterial3: true,
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFA259FF), brightness: Brightness.dark).copyWith(
+          primary: const Color(0xFFA259FF),
+          secondary: const Color(0xFF00FFE0),
+          tertiary: const Color(0xFF00FFE0),
+          surface: const Color(0xFF0E1220),
+          background: const Color(0xFF0B0F1A),
+        ),
         scaffoldBackgroundColor: const Color(0xFF0B0F1A),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
           elevation: 0,
           scrolledUnderElevation: 0,
+          centerTitle: true,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ButtonStyle(
+            minimumSize: const WidgetStatePropertyAll(Size.fromHeight(48)),
+            shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            backgroundColor: const WidgetStatePropertyAll(Color(0xFFA259FF)),
+            foregroundColor: const WidgetStatePropertyAll(Colors.white),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: ButtonStyle(
+            minimumSize: const WidgetStatePropertyAll(Size.fromHeight(44)),
+            shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: ButtonStyle(
+            minimumSize: const WidgetStatePropertyAll(Size.fromHeight(44)),
+            side: const WidgetStatePropertyAll(BorderSide(color: Color(0xFF00FFE0), width: 1.5)),
+            shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            foregroundColor: const WidgetStatePropertyAll(Color(0xFF00FFE0)),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.03),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white24)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white24)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFA259FF), width: 2)),
+          labelStyle: const TextStyle(color: Colors.white70),
+          hintStyle: const TextStyle(color: Colors.white54),
+        ),
+        cardTheme: CardThemeData(
+          color: Colors.white.withOpacity(0.04),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.white.withOpacity(0.08)),
+          ),
+          margin: const EdgeInsets.all(12),
+        ),
+        snackBarTheme: SnackBarThemeData(
+          backgroundColor: const Color(0xFF1A1F2E),
+          contentTextStyle: const TextStyle(color: Colors.white),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: Colors.white.withOpacity(0.06),
+          labelStyle: const TextStyle(color: Colors.white),
+          selectedColor: const Color(0xFFA259FF).withOpacity(0.4),
+          side: const BorderSide(color: Colors.white24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+        progressIndicatorTheme: const ProgressIndicatorThemeData(
+          color: Color(0xFF00FFE0),
         ),
       ),
       home: AuthGate(auth: auth),
@@ -93,15 +157,29 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: const SafeArea(
-        child: Center(
-          child: Text(
-            'Thomster',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 42,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
+      extendBody: true,
+      body: BrandGradient(
+        child: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text(
+                  'Thomster',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Scan a Spotify track and play instantly',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ],
             ),
           ),
         ),
@@ -201,55 +279,156 @@ class ConnectSpotifyScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () async {
-            final scanned = await QrScannerModal.open(
-              context,
-              validator: (raw) async {
-                String toProcess = raw;
-                final uri = SpotifyUtils.parseWithHttpsFallback(raw);
-                if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
-                  if (SpotifyUtils.isShortSpotifyHost(uri.host)) {
-                    final resolved = await SpotifyUtils.resolveFinalUrl(uri);
-                    if (resolved == null) {
-                      return QrValidation.error("Couldn't resolve the Spotify link. Please try again.");
-                    } else {
-                      toProcess = resolved.toString();
-                    }
-                  }
-                }
-
-                final trackId = SpotifyUtils.extractSpotifyTrackId(toProcess);
-                if (trackId == null) {
-                  if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
-                    return QrValidation.error('This Spotify link is not a track. Please scan a track link.');
-                  } else {
-                    return QrValidation.error('Not a Spotify track QR. Please scan a Spotify track link.');
-                  }
-                }
-
-                // IMPORTANT: return the trackId, not the URL
-                return QrValidation.valid(trackId);
-              },
-            );
-            if (scanned == null || scanned.isEmpty) return;
-
-            // 'scanned' is the trackId now (provided by validator)
-            final trackId = scanned;
-            if (context.mounted) {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => PlaybackPage(
-                    auth: auth,
-                    trackId: trackId,
-                    originalUrl: null,
+      extendBodyBehindAppBar: true,
+      body: BrandGradient(
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Scan a Spotify track',
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
                   ),
-                ),
-              );
-            }
-          },
-          child: const Text('Scan QR-code'),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Point your camera at a Spotify track QR to start playback',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 24),
+                  ScanQrBigButton(
+                    onPressed: () async {
+                      final scanned = await QrScannerModal.open(
+                        context,
+                        validator: (raw) async {
+                          String toProcess = raw;
+                          final uri = SpotifyUtils.parseWithHttpsFallback(raw);
+                          if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
+                            if (SpotifyUtils.isShortSpotifyHost(uri.host)) {
+                              final resolved = await SpotifyUtils.resolveFinalUrl(uri);
+                              if (resolved == null) {
+                                return QrValidation.error("Couldn't resolve the Spotify link. Please try again.");
+                              } else {
+                                toProcess = resolved.toString();
+                              }
+                            }
+                          }
+
+                          final trackId = SpotifyUtils.extractSpotifyTrackId(toProcess);
+                          if (trackId == null) {
+                            if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
+                              return QrValidation.error('This Spotify link is not a track. Please scan a track link.');
+                            } else {
+                              return QrValidation.error('Not a Spotify track QR. Please scan a Spotify track link.');
+                            }
+                          }
+
+                          // IMPORTANT: return the trackId, not the URL
+                          return QrValidation.valid(trackId);
+                        },
+                      );
+                      if (scanned == null || scanned.isEmpty) return;
+
+                      // 'scanned' is the trackId now (provided by validator)
+                      final trackId = scanned;
+                      if (context.mounted) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PlaybackPage(
+                              auth: auth,
+                              trackId: trackId,
+                              originalUrl: null,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// ---- Shared branded UI helpers ----
+class BrandGradient extends StatelessWidget {
+  final Widget child;
+  const BrandGradient({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFA259FF), // Electric Purple
+            Color(0xFF00FFE0), // Neon Cyan
+          ],
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+class ScanQrBigButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const ScanQrBigButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final borderRadius = BorderRadius.circular(18);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 280),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [Color(0xFFA259FF), Color(0xFF00FFE0)],
+          ),
+          borderRadius: borderRadius,
+          boxShadow: const [
+            BoxShadow(color: Color(0x803A1B6E), blurRadius: 16, offset: Offset(0, 8)), // purple glow
+            BoxShadow(color: Color(0x8000FFE0), blurRadius: 24, offset: Offset(0, 6)), // cyan glow
+          ],
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: borderRadius,
+            onTap: onPressed,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.qr_code_scanner, color: Colors.black87),
+                  SizedBox(width: 10),
+                  Text(
+                    'Scan QR-code',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
