@@ -422,17 +422,12 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    final title = 'Playback';
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        centerTitle: true,
-      ),
+      appBar: AppBar(),
       extendBodyBehindAppBar: true,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Vibrant animated gradient backdrop
           AnimatedBuilder(
             animation: _bgController,
             builder: (context, child) {
@@ -511,42 +506,6 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              // Header + track info
-                              Text(
-                                'Now Playing',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Track ID',
-                                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                                    ),
-                              ),
-                              const SizedBox(height: 4),
-                              SelectableText(
-                                widget.trackId,
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                      letterSpacing: 0.5,
-                                      fontFeatures: const [ui.FontFeature.tabularFigures()],
-                                    ),
-                              ),
-                              if (widget.originalUrl != null) ...[
-                                const SizedBox(height: 8),
-                                Text(
-                                  widget.originalUrl!,
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                                      ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
                               const SizedBox(height: 24),
 
                               // Big Play/Pause button with glow + pulse
@@ -599,56 +558,53 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
                                   );
                                 },
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                _isPlaying ? 'Pause' : 'Resume',
-                                style: Theme.of(context).textTheme.labelLarge,
-                              ),
-
-                              if (_isPlaying)
-                                AnimatedBuilder(
-                                  animation: _bgController,
-                                  builder: (context, child) {
-                                    final v = _bgController.value;
-                                    final heights = List<double>.generate(5, (i) {
-                                      final phase = v * 2 * math.pi * 2 + i * 1.2;
-                                      final s = (math.sin(phase) + 1) / 2;
-                                      return ui.lerpDouble(6, 28, s)!;
-                                    });
-                                    final cols = const [
-                                      Color(0xFF00FFE0), // Neon Cyan
-                                      Color(0xFFA259FF), // Electric Purple
-                                      Color(0xFF00FFE0), // Neon Cyan
-                                      Color(0xFFA259FF), // Electric Purple
-                                      Color(0xFF00FFE0), // Neon Cyan
-                                    ];
-                                    return SizedBox(
-                                      height: 32,
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          for (int i = 0; i < heights.length; i++)
-                                            Container(
-                                              width: 6,
-                                              height: heights[i],
-                                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                                              decoration: BoxDecoration(
-                                                color: cols[i].withOpacity(0.9),
-                                                borderRadius: BorderRadius.circular(3),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: cols[i].withOpacity(0.35),
-                                                    blurRadius: 10,
-                                                    spreadRadius: 1,
-                                                  ),
-                                                ],
-                                              ),
+                              const SizedBox(height: 20),
+                              AnimatedBuilder(
+                                animation: _bgController,
+                                builder: (context, child) {
+                                  final v = _bgController.value;
+                                  final bool playing = _isPlaying;
+                                  final List<double> heights = playing
+                                      ? List<double>.generate(5, (i) {
+                                          final phase = v * 2 * math.pi * 2 + i * 1.2;
+                                          final s = (math.sin(phase) + 1) / 2;
+                                          return ui.lerpDouble(6, 28, s)!;
+                                        })
+                                      : List<double>.filled(5, 6.0);
+                                  final cols = const [
+                                    Color(0xFF00FFE0), // Neon Cyan
+                                    Color(0xFFA259FF), // Electric Purple
+                                    Color(0xFF00FFE0), // Neon Cyan
+                                    Color(0xFFA259FF), // Electric Purple
+                                    Color(0xFF00FFE0), // Neon Cyan
+                                  ];
+                                  return SizedBox(
+                                    height: 32,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        for (int i = 0; i < heights.length; i++)
+                                          Container(
+                                            width: 6,
+                                            height: heights[i],
+                                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                                            decoration: BoxDecoration(
+                                              color: cols[i].withOpacity(0.9),
+                                              borderRadius: BorderRadius.circular(3),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: cols[i].withOpacity(0.35),
+                                                  blurRadius: 10,
+                                                  spreadRadius: 1,
+                                                ),
+                                              ],
                                             ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
                               const SizedBox(height: 20),
                               // Scan again secondary action
                               OutlinedButton.icon(
@@ -680,13 +636,6 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
                                     ],
                                   ),
                                 ),
-
-                              const SizedBox(height: 8),
-                              Text(
-                                _isPlaying ? 'Status: Playing' : 'Status: Paused/Idle',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
                             ],
                           ),
                         ),
