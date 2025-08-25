@@ -550,6 +550,7 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
                                                 : Icon(
                                                     _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                                                     size: 48,
+                                              color: Colors.white,
                                                   ),
                                           ),
                                         ),
