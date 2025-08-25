@@ -445,11 +445,11 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
                     endAngle: 2 * math.pi,
                     transform: GradientRotation(angle),
                     colors: [
-                      const Color(0xFF00E5FF), // Cyan
-                      const Color(0xFF7C4DFF), // Purple
-                      const Color(0xFFFF4081), // Pink
-                      const Color(0xFFFFEA00), // Yellow
-                      const Color(0xFF00E5FF), // Cyan (loop)
+                      const Color(0xFF00FFE0), // Neon Cyan
+                      const Color(0xFFA259FF), // Electric Purple
+                      const Color(0xFF00FFE0), // Neon Cyan
+                      const Color(0xFFA259FF), // Electric Purple
+                      const Color(0xFF00FFE0), // Neon Cyan (loop)
                     ],
                     stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
                   ),
@@ -616,11 +616,11 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
                                       return ui.lerpDouble(6, 28, s)!;
                                     });
                                     final cols = const [
-                                      Color(0xFF00E5FF),
-                                      Color(0xFF7C4DFF),
-                                      Color(0xFFFF4081),
-                                      Color(0xFFFFEA00),
-                                      Color(0xFF00E5FF),
+                                      Color(0xFF00FFE0), // Neon Cyan
+                                      Color(0xFFA259FF), // Electric Purple
+                                      Color(0xFF00FFE0), // Neon Cyan
+                                      Color(0xFFA259FF), // Electric Purple
+                                      Color(0xFF00FFE0), // Neon Cyan
                                     ];
                                     return SizedBox(
                                       height: 32,
