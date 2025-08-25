@@ -117,14 +117,14 @@ class _QrScannerModalState extends State<QrScannerModal> with WidgetsBindingObse
             });
           } else {
             setState(() {
-              _errorMessage = result.error ?? 'Invalid code';
+              _errorMessage = result.error ?? 'Ongeldige code';
               _errorScanned = raw;
             });
           }
         } catch (_) {
           if (!mounted) return;
           setState(() {
-            _errorMessage = 'Failed to validate code';
+            _errorMessage = 'Validatie mislukt';
             _errorScanned = raw;
           });
         } finally {
@@ -197,7 +197,7 @@ class _QrScannerModalState extends State<QrScannerModal> with WidgetsBindingObse
                 ),
                 icon: const Icon(Icons.close, color: Colors.white),
                 onPressed: () => Navigator.of(context).pop<String>(null),
-                tooltip: 'Close',
+                tooltip: 'Sluiten',
               ),
             ),
 
@@ -230,7 +230,7 @@ class _QrScannerModalState extends State<QrScannerModal> with WidgetsBindingObse
                   // Torch toggle without live listen (mobile_scanner v7.0.1)
                   _RoundControlButton(
                     icon: _torchOn ? Icons.flash_on : Icons.flash_off,
-                    label: 'Torch',
+                    label: 'Zaklamp',
                     onPressed: () async {
                       await _controller.toggleTorch();
                       if (mounted) {
@@ -281,13 +281,13 @@ class _CameraErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String message = 'Camera error';
+    String message = 'Camerafout';
     switch (error.errorCode) {
       case MobileScannerErrorCode.permissionDenied:
-        message = 'Camera permission denied. Please allow camera access in Settings.';
+        message = 'Cameratoestemming geweigerd. Sta camertoegang toe in Instellingen.';
         break;
       case MobileScannerErrorCode.unsupported:
-        message = 'This device does not support camera scanning.';
+        message = 'Dit apparaat ondersteunt geen scannen met de camera.';
         break;
       default:
         message = error.errorDetails?.toString() ?? message;

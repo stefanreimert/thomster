@@ -100,7 +100,7 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
   Future<bool> _withAuthRetry(Future<http.Response> Function(String token) call) async {
     final token1 = await _ensureAccessToken();
     if (token1 == null) {
-      setState(() => _lastError = 'Missing access token. Please login again.');
+      setState(() => _lastError = 'Toegangstoken ontbreekt. Log opnieuw in.');
       return false;
     }
     var resp = await call(token1);
@@ -144,7 +144,7 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _lastError = 'Missing access token. Please login again.';
+          _lastError = 'Toegangstoken ontbreekt. Log opnieuw in.';
         });
       }
       return;
@@ -385,7 +385,7 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
           if (SpotifyUtils.isShortSpotifyHost(uri.host)) {
             final resolved = await SpotifyUtils.resolveFinalUrl(uri);
             if (resolved == null) {
-              return QrValidation.error("Couldn't resolve the Spotify link. Please try again.");
+              return QrValidation.error('Kon de Spotify-link niet openen. Probeer het opnieuw.');
             } else {
               toProcess = resolved.toString();
             }
@@ -395,9 +395,9 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
         final trackId = SpotifyUtils.extractSpotifyTrackId(toProcess);
         if (trackId == null) {
           if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
-            return QrValidation.error('This Spotify link is not a track. Please scan a track link.');
+            return QrValidation.error('Deze Spotify-link is geen nummer. Scan een nummerlink.');
           } else {
-            return QrValidation.error('Not a Spotify track QR. Please scan a Spotify track link.');
+            return QrValidation.error('Geen Spotify-track QR. Scan een Spotify-tracklink.');
           }
         }
 
@@ -610,7 +610,7 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
                               OutlinedButton.icon(
                                 onPressed: _isLoading ? null : _scanAgain,
                                 icon: const Icon(Icons.qr_code_scanner),
-                                label: const Text('Scan again'),
+                                label: const Text('Opnieuw scannen'),
                               ),
 
                               const SizedBox(height: 16),

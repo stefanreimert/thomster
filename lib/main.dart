@@ -145,7 +145,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Authentication failed. Please try again.')),
+        const SnackBar(content: Text('Authenticatie mislukt. Probeer het opnieuw.')),
       );
     } finally {
       if (mounted) {
@@ -177,7 +177,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  'Scan a Spotify track and play instantly',
+                  'Scan een Spotify-nummer en speel direct af',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white70),
                 ),
@@ -204,10 +204,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                         SizedBox(width: 12),
-                        Text('Connecting...'),
+                        Text('Verbinden...'),
                       ],
                     )
-                  : const Text('Connect to spotify'),
+                  : const Text('Verbind met Spotify'),
             ),
           ),
         ),
@@ -271,7 +271,7 @@ class ConnectSpotifyScreen extends StatelessWidget {
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            tooltip: 'Logout',
+            tooltip: 'Uitloggen',
             icon: const Icon(Icons.logout),
             onPressed: () async {
               await auth.logout();
@@ -290,14 +290,8 @@ class ConnectSpotifyScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    'Scan a Spotify track',
+                    'Scan en speel!',
                     style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Point your camera at a Spotify track QR to start playback',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70),
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -313,7 +307,7 @@ class ConnectSpotifyScreen extends StatelessWidget {
                               if (SpotifyUtils.isShortSpotifyHost(uri.host)) {
                                 final resolved = await SpotifyUtils.resolveFinalUrl(uri);
                                 if (resolved == null) {
-                                  return QrValidation.error("Couldn't resolve the Spotify link. Please try again.");
+                                  return QrValidation.error('Kon de Spotify-link niet openen. Probeer het opnieuw.');
                                 } else {
                                   toProcess = resolved.toString();
                                 }
@@ -323,9 +317,9 @@ class ConnectSpotifyScreen extends StatelessWidget {
                             final trackId = SpotifyUtils.extractSpotifyTrackId(toProcess);
                             if (trackId == null) {
                               if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
-                                return QrValidation.error('This Spotify link is not a track. Please scan a track link.');
+                                return QrValidation.error('Deze Spotify-link is geen nummer. Scan een nummerlink.');
                               } else {
-                                return QrValidation.error('Not a Spotify track QR. Please scan a Spotify track link.');
+                                return QrValidation.error('Geen Spotify-track QR. Scan een Spotify-tracklink.');
                               }
                             }
 
@@ -364,7 +358,7 @@ class ConnectSpotifyScreen extends StatelessWidget {
                         );
                       },
                       icon: const Icon(Icons.menu_book_outlined),
-                      label: const Text('Game rules'),
+                      label: const Text('Spelregels'),
                     ),
                   ),
                 ],

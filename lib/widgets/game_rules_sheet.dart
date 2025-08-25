@@ -58,12 +58,12 @@ class GameRulesSheet extends StatelessWidget {
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                        'Game rules',
+                        'Spelregels',
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Close',
+                      tooltip: 'Sluiten',
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.close),
                     ),
@@ -78,28 +78,23 @@ class GameRulesSheet extends StatelessWidget {
                     children: const [
                       _RuleItem(
                         icon: Icons.qr_code_2_rounded,
-                        title: 'Scan to play',
-                        subtitle: 'Use the Scan QR-code button to scan any Spotify track code and start playback instantly.',
+                        title: 'Scan om te spelen',
+                        subtitle: 'Gebruik de knop Scan QR-code om een Qr-code te scannen en af te spelen.',
                       ),
                       _RuleItem(
                         icon: Icons.library_music_rounded,
-                        title: 'Tracks only',
-                        subtitle: 'Please scan Spotify track links. Playlists, albums or artists won’t work in this mode.',
+                        title: 'Alleen nummers',
+                        subtitle: 'Scan alleen Spotify-nummers. Afspeellijsten, albums of artiesten werken niet.',
                       ),
                       _RuleItem(
                         icon: Icons.smartphone_rounded,
-                        title: 'Have Spotify ready',
-                        subtitle: 'Ensure your phone is an active Spotify device. We try to auto-transfer playback if needed.',
-                      ),
-                      _RuleItem(
-                        icon: Icons.schedule_rounded,
-                        title: 'Take turns',
-                        subtitle: 'Be fair—let everyone scan their picks. Keep the vibe going.',
+                        title: 'Zorg dat Spotify klaarstaat',
+                        subtitle: 'Zorg dat je telefoon een actief Spotify-apparaat is. Indien nodig proberen we automatisch het afspelen over te zetten.',
                       ),
                       _RuleItem(
                         icon: Icons.volume_up_rounded,
-                        title: 'Mind the volume',
-                        subtitle: 'Adjust volume responsibly for the room and people around you.',
+                        title: 'Let op het volume',
+                        subtitle: 'Pas het volume verantwoord aan voor de ruimte en de mensen om je heen.',
                       ),
                     ],
                   ),
@@ -113,7 +108,7 @@ class GameRulesSheet extends StatelessWidget {
                     backgroundColor: WidgetStatePropertyAll(cs.primary),
                     foregroundColor: const WidgetStatePropertyAll(Colors.white),
                   ),
-                  child: const Text('Got it'),
+                  child: const Text('Begrepen'),
                 ),
               ),
             ],
