@@ -3,6 +3,7 @@ import 'auth.dart';
 import 'widgets/qr_scanner_modal.dart';
 import 'playback_page.dart';
 import 'spotify_utils.dart';
+import 'widgets/game_rules_sheet.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +58,7 @@ class ThomsterApp extends StatelessWidget {
             side: const WidgetStatePropertyAll(BorderSide(color: Color(0xFF00FFE0), width: 1.5)),
             shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
             foregroundColor: const WidgetStatePropertyAll(Color(0xFF00FFE0)),
+            backgroundColor: const WidgetStatePropertyAll(Color(0x59000000)),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -266,7 +268,6 @@ class ConnectSpotifyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Connect'),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
@@ -299,53 +300,72 @@ class ConnectSpotifyScreen extends StatelessWidget {
                     style: TextStyle(color: Colors.white70),
                   ),
                   const SizedBox(height: 24),
-                  ScanQrBigButton(
-                    onPressed: () async {
-                      final scanned = await QrScannerModal.open(
-                        context,
-                        validator: (raw) async {
-                          String toProcess = raw;
-                          final uri = SpotifyUtils.parseWithHttpsFallback(raw);
-                          if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
-                            if (SpotifyUtils.isShortSpotifyHost(uri.host)) {
-                              final resolved = await SpotifyUtils.resolveFinalUrl(uri);
-                              if (resolved == null) {
-                                return QrValidation.error("Couldn't resolve the Spotify link. Please try again.");
-                              } else {
-                                toProcess = resolved.toString();
+                  SizedBox(
+                    width: double.infinity,
+                    child: ScanQrBigButton(
+                      onPressed: () async {
+                        final scanned = await QrScannerModal.open(
+                          context,
+                          validator: (raw) async {
+                            String toProcess = raw;
+                            final uri = SpotifyUtils.parseWithHttpsFallback(raw);
+                            if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
+                              if (SpotifyUtils.isShortSpotifyHost(uri.host)) {
+                                final resolved = await SpotifyUtils.resolveFinalUrl(uri);
+                                if (resolved == null) {
+                                  return QrValidation.error("Couldn't resolve the Spotify link. Please try again.");
+                                } else {
+                                  toProcess = resolved.toString();
+                                }
                               }
                             }
-                          }
 
-                          final trackId = SpotifyUtils.extractSpotifyTrackId(toProcess);
-                          if (trackId == null) {
-                            if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
-                              return QrValidation.error('This Spotify link is not a track. Please scan a track link.');
-                            } else {
-                              return QrValidation.error('Not a Spotify track QR. Please scan a Spotify track link.');
+                            final trackId = SpotifyUtils.extractSpotifyTrackId(toProcess);
+                            if (trackId == null) {
+                              if (uri != null && SpotifyUtils.isSpotifyHost(uri.host)) {
+                                return QrValidation.error('This Spotify link is not a track. Please scan a track link.');
+                              } else {
+                                return QrValidation.error('Not a Spotify track QR. Please scan a Spotify track link.');
+                              }
                             }
-                          }
 
-                          // IMPORTANT: return the trackId, not the URL
-                          return QrValidation.valid(trackId);
-                        },
-                      );
-                      if (scanned == null || scanned.isEmpty) return;
-
-                      // 'scanned' is the trackId now (provided by validator)
-                      final trackId = scanned;
-                      if (context.mounted) {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => PlaybackPage(
-                              auth: auth,
-                              trackId: trackId,
-                              originalUrl: null,
-                            ),
-                          ),
+                            // IMPORTANT: return the trackId, not the URL
+                            return QrValidation.valid(trackId);
+                          },
                         );
-                      }
-                    },
+                        if (scanned == null || scanned.isEmpty) return;
+
+                        // 'scanned' is the trackId now (provided by validator)
+                        final trackId = scanned;
+                        if (context.mounted) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PlaybackPage(
+                                auth: auth,
+                                trackId: trackId,
+                                originalUrl: null,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => const GameRulesSheet(),
+                        );
+                      },
+                      icon: const Icon(Icons.menu_book_outlined),
+                      label: const Text('Game rules'),
+                    ),
                   ),
                 ],
               ),
@@ -390,17 +410,22 @@ class ScanQrBigButton extends StatelessWidget {
     final borderRadius = BorderRadius.circular(18);
     return ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 280),
-      child: DecoratedBox(
+      child: Container(
+        width: double.infinity,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
-            colors: [Color(0xFFA259FF), Color(0xFF00FFE0)],
+            colors: [
+              Color(0xFFB97AFF), // Light Purple
+              Color(0xFFA259FF), // Electric Purple
+            ],
           ),
           borderRadius: borderRadius,
+          border: Border.all(color: const Color(0xFFA259FF), width: 2),
           boxShadow: const [
             BoxShadow(color: Color(0x803A1B6E), blurRadius: 16, offset: Offset(0, 8)), // purple glow
-            BoxShadow(color: Color(0x8000FFE0), blurRadius: 24, offset: Offset(0, 6)), // cyan glow
+            BoxShadow(color: Color(0x33A259FF), blurRadius: 20, offset: Offset(0, 6)), // subtle purple rim
           ],
         ),
         child: Material(
@@ -414,15 +439,18 @@ class ScanQrBigButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.qr_code_scanner, color: Colors.black87),
+                  Icon(Icons.qr_code_scanner, color: Colors.white),
                   SizedBox(width: 10),
                   Text(
                     'Scan QR-code',
                     style: TextStyle(
-                      color: Colors.black87,
+                      color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.2,
+                      shadows: [
+                        Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 1)),
+                      ],
                     ),
                   ),
                 ],
@@ -434,3 +462,4 @@ class ScanQrBigButton extends StatelessWidget {
     );
   }
 }
+
