@@ -4,6 +4,8 @@ import 'widgets/qr_scanner_modal.dart';
 import 'playback_page.dart';
 import 'spotify_utils.dart';
 import 'widgets/game_rules_sheet.dart';
+import 'widgets/device_selector.dart';
+import 'device_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -216,9 +218,22 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 }
 
-class ConnectSpotifyScreen extends StatelessWidget {
+class ConnectSpotifyScreen extends StatefulWidget {
   final AuthService auth;
   const ConnectSpotifyScreen({super.key, required this.auth});
+
+  @override
+  State<ConnectSpotifyScreen> createState() => _ConnectSpotifyScreenState();
+}
+
+class _ConnectSpotifyScreenState extends State<ConnectSpotifyScreen> {
+  SpotifyDevice? _selectedDevice;
+
+  void _onDeviceSelected(SpotifyDevice? device) {
+    setState(() {
+      _selectedDevice = device;
+    });
+  }
 
   // Extracts a Spotify track ID from various QR contents.
   static String? extractSpotifyTrackId(String input) {
@@ -274,7 +289,7 @@ class ConnectSpotifyScreen extends StatelessWidget {
             tooltip: 'Uitloggen',
             icon: const Icon(Icons.logout),
             onPressed: () async {
-              await auth.logout();
+              await widget.auth.logout();
               // AuthGate will rebuild to WelcomeScreen after logout.
             },
           ),
@@ -294,6 +309,12 @@ class ConnectSpotifyScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 24),
+                  DeviceSelector(
+                    auth: widget.auth,
+                    selectedDevice: _selectedDevice,
+                    onDeviceSelected: _onDeviceSelected,
+                  ),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ScanQrBigButton(
@@ -335,9 +356,10 @@ class ConnectSpotifyScreen extends StatelessWidget {
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => PlaybackPage(
-                                auth: auth,
+                                auth: widget.auth,
                                 trackId: trackId,
                                 originalUrl: null,
+                                selectedDevice: _selectedDevice,
                               ),
                             ),
                           );

@@ -11,17 +11,20 @@ import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, Tar
 import 'app_remote.dart';
 import 'widgets/qr_scanner_modal.dart';
 import 'spotify_utils.dart';
+import 'device_service.dart';
 
 class PlaybackPage extends StatefulWidget {
   final AuthService auth;
   final String trackId;
   final String? originalUrl;
+  final SpotifyDevice? selectedDevice;
 
   const PlaybackPage({
     super.key,
     required this.auth,
     required this.trackId,
     this.originalUrl,
+    this.selectedDevice,
   });
 
   @override
@@ -197,14 +200,24 @@ class _PlaybackPageState extends State<PlaybackPage> with SingleTickerProviderSt
       return msg;
     }
 
-    http.Response resp = await attemptPlay(token);
+    // Use preselected device if available, otherwise try default
+    http.Response resp;
+    if (widget.selectedDevice != null) {
+      resp = await attemptPlay(token, deviceId: widget.selectedDevice!.id);
+    } else {
+      resp = await attemptPlay(token);
+    }
 
     // If unauthorized, try refresh once and retry.
     if (resp.statusCode == 401) {
       await widget.auth.refreshAccessToken();
       token = widget.auth.accessToken;
       if (token != null) {
-        resp = await attemptPlay(token);
+        if (widget.selectedDevice != null) {
+          resp = await attemptPlay(token, deviceId: widget.selectedDevice!.id);
+        } else {
+          resp = await attemptPlay(token);
+        }
       }
     }
 
